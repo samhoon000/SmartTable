@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { calculateBookingTotalPrice } from '../lib/booking-price.js'
 import { BookingContext } from './booking-context.js'
 
 export function BookingProvider({ children }) {
@@ -14,6 +15,7 @@ export function BookingProvider({ children }) {
   const [guestName, setGuestName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  const [pendingPayment, setPendingPayment] = useState(null)
   const [confirmedReservation, setConfirmedReservation] = useState(null)
 
   const resetBooking = useCallback(() => {
@@ -29,6 +31,7 @@ export function BookingProvider({ children }) {
     setGuestName('')
     setPhone('')
     setEmail('')
+    setPendingPayment(null)
     setConfirmedReservation(null)
   }, [])
 
@@ -47,14 +50,17 @@ export function BookingProvider({ children }) {
     setGuestName('')
     setPhone('')
     setEmail('')
+    setPendingPayment(null)
     setConfirmedReservation(null)
   }, [])
 
-  const confirmReservation = useCallback(() => {
-    if (!restaurant || !date || !entryTime || !exitTime || !tableId) return
+  /** Validates and stages checkout for the payment page. */
+  const openPaymentCheckout = useCallback(() => {
+    if (!restaurant || !date || !entryTime || !exitTime || !tableId) return false
     const range = `${entryTime} – ${exitTime}`
     setTime(range)
-    setConfirmedReservation({
+    const totalPrice = calculateBookingTotalPrice(tableSeats, entryTime, exitTime)
+    setPendingPayment({
       restaurantName: restaurant.name,
       restaurantId: restaurant.id,
       date,
@@ -67,7 +73,9 @@ export function BookingProvider({ children }) {
       guestName,
       phone,
       email,
+      totalPrice,
     })
+    return true
   }, [restaurant, date, entryTime, exitTime, tableId, tableSeats, guests, guestName, phone, email])
 
   const value = useMemo(
@@ -96,11 +104,13 @@ export function BookingProvider({ children }) {
       setPhone,
       email,
       setEmail,
+      pendingPayment,
+      setPendingPayment,
       confirmedReservation,
       setConfirmedReservation,
       resetBooking,
       startBooking,
-      confirmReservation,
+      openPaymentCheckout,
     }),
     [
       restaurant,
@@ -115,10 +125,11 @@ export function BookingProvider({ children }) {
       guestName,
       phone,
       email,
+      pendingPayment,
       confirmedReservation,
       resetBooking,
       startBooking,
-      confirmReservation,
+      openPaymentCheckout,
     ],
   )
 

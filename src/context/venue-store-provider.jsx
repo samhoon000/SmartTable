@@ -104,6 +104,7 @@ export function VenueStoreProvider({ children }) {
             guestName: payload.guestName,
             guests: payload.guests,
             restaurantName: payload.restaurantName,
+            totalPrice: payload.totalPrice ?? null,
             createdAt: new Date().toISOString(),
           },
         ],

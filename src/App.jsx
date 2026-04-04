@@ -8,6 +8,7 @@ import { RestaurantListingPage } from './pages/restaurant-listing-page.jsx'
 import { RestaurantDetailPage } from './pages/restaurant-detail-page.jsx'
 import { BookingFlowPage } from './pages/booking-flow-page.jsx'
 import { ConfirmationPage } from './pages/confirmation-page.jsx'
+import { PaymentPage } from './pages/payment-page.jsx'
 import { PlaceholderPage } from './pages/placeholder-page.jsx'
 import { AdminLoginPage } from './pages/admin-login-page.jsx'
 import { AdminRegisterPage } from './pages/admin-register-page.jsx'
@@ -25,6 +26,7 @@ export default function App() {
                 <Route path="/restaurants" element={<RestaurantListingPage />} />
                 <Route path="/restaurants/:restaurantId" element={<RestaurantDetailPage />} />
                 <Route path="/book/:restaurantId" element={<BookingFlowPage />} />
+                <Route path="/payment" element={<PaymentPage />} />
                 <Route path="/confirmation" element={<ConfirmationPage />} />
                 <Route
                   path="/my-reservations"

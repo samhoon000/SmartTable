@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import data from '../data/restaurants.json'
+import { formatRupees } from '../lib/booking-price.js'
 import { useAdminAuth } from '../hooks/use-admin-auth.js'
 import { useVenueStore } from '../hooks/use-venue-store.js'
 import { TableFloorPlan } from '../components/table-floor-plan.jsx'
@@ -193,8 +194,13 @@ export function AdminDashboardPage() {
                     Table {r.tableId} · {r.guests} {r.guests === 1 ? 'guest' : 'guests'}
                   </p>
                 </div>
-                <div className="text-sm text-stone-600">
-                  {r.date} · {r.entryTime} – {r.exitTime}
+                <div className="text-right text-sm text-stone-600">
+                  <div>
+                    {r.date} · {r.entryTime} – {r.exitTime}
+                  </div>
+                  {r.totalPrice != null ? (
+                    <div className="mt-1 font-semibold text-teal-800">{formatRupees(r.totalPrice)}</div>
+                  ) : null}
                 </div>
               </li>
             ))}

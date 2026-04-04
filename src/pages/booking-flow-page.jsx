@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import data from '../data/restaurants.json'
+import { calculateBookingTotalPrice, formatRupees } from '../lib/booking-price.js'
 import { isEndAfterStart } from '../lib/time-range.js'
 import { useBooking } from '../hooks/use-booking.js'
 import { useVenueStore } from '../hooks/use-venue-store.js'
 import { CustomerReservationPick } from '../components/customer-reservation-pick.jsx'
+import { EstimatedPriceBanner } from '../components/estimated-price-banner.jsx'
 
 function formatDisplayDate(iso) {
   if (!iso) return ''
@@ -14,15 +16,14 @@ function formatDisplayDate(iso) {
 
 const STEP_META = [
   { n: 1, label: 'Table & time' },
-  { n: 2, label: 'Review' },
-  { n: 3, label: 'Guest details' },
-  { n: 4, label: 'Confirm' },
+  { n: 2, label: 'Guest details' },
+  { n: 3, label: 'Confirm' },
 ]
 
 export function BookingFlowPage() {
   const { restaurantId } = useParams()
   const navigate = useNavigate()
-  const { hasBookingConflict, addReservation } = useVenueStore()
+  const { hasBookingConflict } = useVenueStore()
   const {
     restaurant,
     date,
@@ -46,7 +47,7 @@ export function BookingFlowPage() {
     email,
     setEmail,
     startBooking,
-    confirmReservation,
+    openPaymentCheckout,
   } = useBooking()
 
   const [step1Error, setStep1Error] = useState('')
@@ -85,10 +86,10 @@ export function BookingFlowPage() {
     )
   }
 
-  const goNext = () => setStep((s) => Math.min(4, s + 1))
+  const goNext = () => setStep((s) => Math.min(3, s + 1))
   const goBack = () => setStep((s) => Math.max(1, s - 1))
 
-  const step3Valid = guestName.trim() && phone.trim() && email.trim()
+  const step2Valid = guestName.trim() && phone.trim() && email.trim()
 
   const validateStep1 = () => {
     if (!tableId) return 'Please select an available table.'
@@ -113,20 +114,9 @@ export function BookingFlowPage() {
     setStep1Error('')
   }
 
-  const handleConfirm = () => {
-    if (!restaurant || !date || !entryTime || !exitTime || !tableId) return
-    confirmReservation()
-    addReservation({
-      restaurantId: restaurant.id,
-      restaurantName: restaurant.name,
-      tableId,
-      date,
-      entryTime,
-      exitTime,
-      guestName,
-      guests,
-    })
-    navigate('/confirmation')
+  const handleProceedToPayment = () => {
+    if (!openPaymentCheckout()) return
+    navigate('/payment')
   }
 
   return (
@@ -176,6 +166,12 @@ export function BookingFlowPage() {
                 onSelectTable={handleSelectTable}
               />
             </div>
+            <EstimatedPriceBanner
+              className="mt-6"
+              tableSeats={tableSeats}
+              entryTime={entryTime}
+              exitTime={exitTime}
+            />
             {step1Error ? <p className="mt-4 text-sm font-medium text-red-600">{step1Error}</p> : null}
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <Link
@@ -196,66 +192,6 @@ export function BookingFlowPage() {
         )}
 
         {step === 2 && (
-          <>
-            <h1 className="text-xl font-semibold text-stone-900 sm:text-2xl">Review reservation</h1>
-            <p className="mt-1 text-sm text-stone-600">Confirm your table and seating window before entering guest details.</p>
-            <div className="mt-6 flex gap-4 rounded-xl border border-stone-100 bg-stone-50/80 p-4">
-              <img
-                src={restaurant.image}
-                alt=""
-                className="h-20 w-28 shrink-0 rounded-lg object-cover sm:h-24 sm:w-32"
-              />
-              <div>
-                <p className="font-semibold text-stone-900">{restaurant.name}</p>
-                <p className="text-sm text-stone-600">{restaurant.location}</p>
-              </div>
-            </div>
-            <dl className="mt-6 space-y-3 text-sm">
-              <div className="flex justify-between gap-4 border-b border-stone-100 pb-3">
-                <dt className="text-stone-500">Table</dt>
-                <dd className="font-medium text-stone-900">
-                  {tableId} · {tableSeats} seats
-                </dd>
-              </div>
-              <div className="flex justify-between gap-4 border-b border-stone-100 pb-3">
-                <dt className="text-stone-500">Date</dt>
-                <dd className="font-medium text-stone-900">{formatDisplayDate(date)}</dd>
-              </div>
-              <div className="flex justify-between gap-4 border-b border-stone-100 pb-3">
-                <dt className="text-stone-500">Entry</dt>
-                <dd className="font-medium text-stone-900">{entryTime}</dd>
-              </div>
-              <div className="flex justify-between gap-4 border-b border-stone-100 pb-3">
-                <dt className="text-stone-500">Exit</dt>
-                <dd className="font-medium text-stone-900">{exitTime}</dd>
-              </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-stone-500">Guests</dt>
-                <dd className="font-medium text-stone-900">
-                  {guests} {guests === 1 ? 'guest' : 'guests'}
-                </dd>
-              </div>
-            </dl>
-            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-              <button
-                type="button"
-                onClick={goBack}
-                className="inline-flex justify-center rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={goNext}
-                className="inline-flex justify-center rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-600"
-              >
-                Continue
-              </button>
-            </div>
-          </>
-        )}
-
-        {step === 3 && (
           <>
             <h1 className="text-xl font-semibold text-stone-900 sm:text-2xl">Guest details</h1>
             <p className="mt-1 text-sm text-stone-600">Contact details the restaurant uses for confirmations.</p>
@@ -301,7 +237,7 @@ export function BookingFlowPage() {
               </button>
               <button
                 type="button"
-                disabled={!step3Valid}
+                disabled={!step2Valid}
                 onClick={goNext}
                 className="inline-flex justify-center rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -311,10 +247,12 @@ export function BookingFlowPage() {
           </>
         )}
 
-        {step === 4 && (
+        {step === 3 && (
           <>
             <h1 className="text-xl font-semibold text-stone-900 sm:text-2xl">Confirm reservation</h1>
-            <p className="mt-1 text-sm text-stone-600">Review once more, then confirm to complete your hold.</p>
+            <p className="mt-1 text-sm text-stone-600">
+              Review your booking summary, then continue to secure payment—like OpenTable or Zomato Dining checkout.
+            </p>
             <div className="mt-6 rounded-xl border border-stone-100 bg-stone-50/80 p-4 text-sm">
               <p className="font-semibold text-stone-900">{restaurant.name}</p>
               <p className="mt-2 text-stone-600">
@@ -334,6 +272,16 @@ export function BookingFlowPage() {
                 {email}
               </p>
             </div>
+            <div className="mt-6 rounded-xl border-2 border-teal-200 bg-teal-50/90 px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-teal-800">Total due</p>
+              <p className="text-2xl font-bold text-teal-900">
+                {formatRupees(
+                  tableSeats && entryTime && exitTime && isEndAfterStart(entryTime, exitTime)
+                    ? calculateBookingTotalPrice(tableSeats, entryTime, exitTime)
+                    : 0,
+                )}
+              </p>
+            </div>
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
               <button
                 type="button"
@@ -344,10 +292,10 @@ export function BookingFlowPage() {
               </button>
               <button
                 type="button"
-                onClick={handleConfirm}
+                onClick={handleProceedToPayment}
                 className="inline-flex justify-center rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-700/25 hover:bg-teal-600"
               >
-                Confirm reservation
+                Continue to payment
               </button>
             </div>
           </>

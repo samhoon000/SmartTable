@@ -8,6 +8,7 @@ import { useVenueStore } from '../hooks/use-venue-store.js'
 import { StarRating } from '../components/star-rating.jsx'
 import { MenuSection } from '../components/menu-section.jsx'
 import { CustomerReservationPick } from '../components/customer-reservation-pick.jsx'
+import { EstimatedPriceBanner } from '../components/estimated-price-banner.jsx'
 
 function defaultDate() {
   const d = new Date()
@@ -188,6 +189,13 @@ export function RestaurantDetailPage() {
                   onSelectTable={handleSelectTable}
                 />
               </div>
+
+              <EstimatedPriceBanner
+                className="mt-6"
+                tableSeats={tableSeats}
+                entryTime={entryTime}
+                exitTime={exitTime}
+              />
 
               {formError ? <p className="mt-4 text-sm font-medium text-red-600">{formError}</p> : null}
 

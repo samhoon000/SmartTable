@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { formatRupees } from '../lib/booking-price.js'
 import { useBooking } from '../hooks/use-booking.js'
 
 function formatDisplayDate(iso) {
@@ -20,9 +21,23 @@ export function ConfirmationPage() {
     return null
   }
 
-  const { restaurantName, date, time, guests, tableId, tableSeats, entryTime, exitTime } = confirmedReservation
+  const {
+    restaurantName,
+    date,
+    time,
+    guests,
+    tableId,
+    tableSeats,
+    entryTime,
+    exitTime,
+    totalPrice,
+    paidAmount,
+    paymentMethodLabel,
+    paymentConfirmationMessage,
+  } = confirmedReservation
   const windowLabel =
     entryTime && exitTime ? `${entryTime} – ${exitTime}` : time
+  const amountPaid = paidAmount ?? totalPrice
 
   return (
     <div className="mx-auto max-w-lg px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
@@ -34,6 +49,18 @@ export function ConfirmationPage() {
         <p className="mt-2 text-sm text-stone-600">
           Your table request is confirmed for the details below. A typical platform would email or text this summary.
         </p>
+        {paymentConfirmationMessage ? (
+          <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm text-emerald-900">
+            <p className="font-semibold">Payment confirmed</p>
+            <p className="mt-1 text-emerald-800/95">{paymentConfirmationMessage}</p>
+            {paymentMethodLabel ? (
+              <p className="mt-2 text-xs text-emerald-800/80">Paid via {paymentMethodLabel}</p>
+            ) : null}
+            {amountPaid != null ? (
+              <p className="mt-2 text-lg font-bold text-emerald-950">Amount paid: {formatRupees(amountPaid)}</p>
+            ) : null}
+          </div>
+        ) : null}
         <div className="mt-8 rounded-xl border border-stone-100 bg-stone-50/90 p-5 text-left text-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Reservation details</p>
           <dl className="mt-4 space-y-3">
@@ -64,6 +91,12 @@ export function ConfirmationPage() {
                 {guests} {guests === 1 ? 'guest' : 'guests'}
               </dd>
             </div>
+            {totalPrice != null ? (
+              <div className="flex justify-between gap-4 border-t border-stone-200 pt-3">
+                <dt className="text-stone-500">Booking total</dt>
+                <dd className="text-right font-semibold text-teal-900">{formatRupees(totalPrice)}</dd>
+              </div>
+            ) : null}
           </dl>
         </div>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
