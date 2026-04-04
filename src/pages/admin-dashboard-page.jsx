@@ -11,9 +11,7 @@ export function AdminDashboardPage() {
   const { setManualTableReserved, isManualReserved, addTable, removeTable, reservationsForRestaurant } =
     useVenueStore()
 
-  const [restaurantId, setRestaurantId] = useState(
-    () => session?.restaurantId ?? data.restaurants[0]?.id ?? '',
-  )
+  const restaurantId = session?.restaurantId ?? data.restaurants[0]?.id ?? ''
   const [adminPick, setAdminPick] = useState(null)
   const [newTableId, setNewTableId] = useState('')
   const [newSeats, setNewSeats] = useState(4)
@@ -70,25 +68,7 @@ export function AdminDashboardPage() {
         </div>
       </div>
 
-      <label className="mt-8 block max-w-md">
-        <span className="text-sm font-medium text-stone-700">Restaurant</span>
-        <select
-          value={restaurantId}
-          onChange={(e) => {
-            setRestaurantId(e.target.value)
-            setAdminPick(null)
-          }}
-          className="mt-1.5 w-full cursor-pointer rounded-xl border border-stone-200 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-600/20"
-        >
-          {data.restaurants.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_280px]">
+      <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_280px]">
         <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-lg font-semibold text-stone-900">Table layout management</h2>
           <p className="mt-1 text-sm text-stone-600">

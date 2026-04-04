@@ -16,7 +16,7 @@ export function LandingPage() {
           className="absolute inset-0 h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-stone-900/75 via-stone-900/55 to-stone-900/80" />
-        <div className="relative mx-auto flex max-w-7xl flex-col justify-end px-4 pb-16 pt-28 sm:px-6 sm:pb-20 sm:pt-36 lg:px-8 lg:pb-24 lg:pt-40">
+        <div className="relative mx-auto flex max-w-7xl flex-col items-start justify-end px-4 pb-16 pt-28 sm:px-6 sm:pb-20 sm:pt-36 lg:px-8 lg:pb-24 lg:pt-40">
           <div className="max-w-3xl">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-teal-200/90">Reserve in seconds</p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
@@ -27,11 +27,11 @@ export function LandingPage() {
               you already use.
             </p>
           </div>
-          <div className="mt-10 flex w-full justify-center px-1 sm:px-0">
+          <div className="mt-10 flex w-full shrink-0 justify-start">
             <button
               type="button"
               onClick={() => navigate('/restaurants')}
-              className="rounded-full bg-teal-600 px-10 py-3.5 text-base font-semibold text-white shadow-lg shadow-teal-950/25 transition hover:bg-teal-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-200 active:scale-[0.98]"
+              className="block w-[691px] max-w-full rounded-full border-0 bg-[#14b8a6] py-[14px] px-[40px] text-center font-sans text-base font-semibold text-white transition-all duration-300 ease-in-out hover:scale-[1.02] hover:bg-[#0d9488] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80"
             >
               Search Restaurants
             </button>
