@@ -85,31 +85,61 @@ export function VenueStoreProvider({ children }) {
   )
 
   const addReservation = useCallback(
-    (payload) => {
-      const id =
-        typeof crypto !== 'undefined' && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `res-${Date.now()}-${Math.random().toString(16).slice(2)}`
-      setAndPersist((prev) => ({
-        ...prev,
-        reservations: [
-          ...prev.reservations,
-          {
-            id,
+    async (payload) => {
+      try {
+        const response = await fetch("http://localhost:5000/api/reservations/book-table", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
             restaurantId: payload.restaurantId,
             tableId: payload.tableId,
+            userName: payload.guestName,
+            userEmail: payload.email || "test@example.com",
             date: payload.date,
-            entryTime: payload.entryTime,
-            exitTime: payload.exitTime,
-            guestName: payload.guestName,
+            startTime: payload.entryTime,
+            endTime: payload.exitTime,
             guests: payload.guests,
-            restaurantName: payload.restaurantName,
-            totalPrice: payload.totalPrice ?? null,
-            createdAt: new Date().toISOString(),
-          },
-        ],
-      }))
-      return id
+            totalPrice: payload.totalPrice,
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to book table");
+        }
+
+        const data = await response.json();
+        
+        const id = data.reservation?._id || 
+          (typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `res-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+
+        setAndPersist((prev) => ({
+          ...prev,
+          reservations: [
+            ...prev.reservations,
+            {
+              id,
+              restaurantId: payload.restaurantId,
+              tableId: payload.tableId,
+              date: payload.date,
+              entryTime: payload.entryTime,
+              exitTime: payload.exitTime,
+              guestName: payload.guestName,
+              guests: payload.guests,
+              restaurantName: payload.restaurantName,
+              totalPrice: payload.totalPrice ?? null,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        }));
+
+        return id;
+      } catch (error) {
+        console.error("Booking error:", error);
+      }
     },
     [setAndPersist],
   )

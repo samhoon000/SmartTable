@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import data from '../data/restaurants.json'
 import { formatRupees } from '../lib/booking-price.js'
@@ -17,7 +17,35 @@ export function AdminDashboardPage() {
   const [newSeats, setNewSeats] = useState(4)
   const [addMsg, setAddMsg] = useState('')
 
-  const reservations = useMemo(() => reservationsForRestaurant(restaurantId), [reservationsForRestaurant, restaurantId])
+  const [reservations, setReservations] = useState([])
+  const [loadingReservations, setLoadingReservations] = useState(false)
+
+  useEffect(() => {
+    if (restaurantId) {
+      setLoadingReservations(true)
+      fetch(`http://localhost:5000/api/reservations/${restaurantId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (Array.isArray(data)) {
+              setReservations(data.map(r => ({
+                id: r._id,
+                tableId: r.tableId,
+                guestName: r.userName,
+                guests: r.guests || 2,
+                date: r.date,
+                entryTime: r.startTime,
+                exitTime: r.endTime,
+                totalPrice: r.totalPrice,
+              })))
+            }
+            setLoadingReservations(false)
+        })
+        .catch(err => {
+            console.error(err)
+            setLoadingReservations(false)
+        })
+    }
+  }, [restaurantId])
 
   if (!isAuthenticated) {
     return <Navigate to="/admin/login" replace />
@@ -161,8 +189,10 @@ export function AdminDashboardPage() {
 
       <section className="mt-10 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold text-stone-900">Reservation overview</h2>
-        <p className="mt-1 text-sm text-stone-600">Guest bookings created from the public flow (stored locally in this demo).</p>
-        {reservations.length === 0 ? (
+        <p className="mt-1 text-sm text-stone-600">Guest bookings fetched from the database.</p>
+        {loadingReservations ? (
+          <p className="mt-6 text-sm text-stone-500">Loading reservations...</p>
+        ) : reservations.length === 0 ? (
           <p className="mt-6 text-sm text-stone-500">No reservations yet for this restaurant.</p>
         ) : (
           <ul className="mt-6 divide-y divide-stone-100">
