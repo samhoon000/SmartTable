@@ -1,21 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import data from '../data/restaurants.json'
-import { SearchBar } from '../components/search-bar.jsx'
 import { PopularRestaurantCard } from '../components/popular-restaurant-card.jsx'
 
 const popular = data.restaurants.slice(0, 6)
 
 export function LandingPage() {
   const navigate = useNavigate()
-
-  const handleSearch = ({ location, date, time, guests }) => {
-    const params = new URLSearchParams()
-    if (location) params.set('area', location)
-    if (date) params.set('date', date)
-    if (time) params.set('time', time)
-    if (guests) params.set('guests', String(guests))
-    navigate({ pathname: '/restaurants', search: params.toString() })
-  }
 
   return (
     <div>
@@ -33,12 +23,18 @@ export function LandingPage() {
               Find a table for tonight—or plan ahead
             </h1>
             <p className="mt-4 max-w-xl text-lg text-stone-200/95">
-              Search by location, party size, and time. Browse trusted restaurants with real ratings and transparent
-              availability-style booking—just like the apps you already use.
+              Browse trusted restaurants with real ratings and transparent availability-style booking—just like the apps
+              you already use.
             </p>
           </div>
-          <div className="mt-10 max-w-5xl">
-            <SearchBar variant="hero" onSearch={handleSearch} />
+          <div className="mt-10 flex w-full justify-center px-1 sm:px-0">
+            <button
+              type="button"
+              onClick={() => navigate('/restaurants')}
+              className="rounded-full bg-teal-600 px-10 py-3.5 text-base font-semibold text-white shadow-lg shadow-teal-950/25 transition hover:bg-teal-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-200 active:scale-[0.98]"
+            >
+              Search Restaurants
+            </button>
           </div>
         </div>
       </section>

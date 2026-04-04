@@ -1,78 +1,126 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { getMenuForRestaurant } from '../data/restaurant-menus.js'
 
-export function MenuSection({ menuCategories }) {
-  const [active, setActive] = useState(menuCategories[0]?.category ?? '')
+export function MenuSection({ restaurantId }) {
+  const menu = getMenuForRestaurant(restaurantId)
+  const [modalIndex, setModalIndex] = useState(null)
 
-  if (!menuCategories?.length) return null
+  const pages = menu?.pages ?? []
 
-  const current = menuCategories.find((c) => c.category === active) ?? menuCategories[0]
+  const openModal = (index) => setModalIndex(index)
+  const closeModal = useCallback(() => setModalIndex(null), [])
+
+  const nextImage = useCallback((e) => {
+    if (e) e.stopPropagation()
+    setModalIndex((prev) => (prev !== null ? (prev + 1) % pages.length : null))
+  }, [pages.length])
+
+  const prevImage = useCallback((e) => {
+    if (e) e.stopPropagation()
+    setModalIndex((prev) => (prev !== null ? (prev - 1 + pages.length) % pages.length : null))
+  }, [pages.length])
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (modalIndex === null) return
+      if (e.key === 'Escape') closeModal()
+      if (e.key === 'ArrowRight') nextImage()
+      if (e.key === 'ArrowLeft') prevImage()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [modalIndex, closeModal, nextImage, prevImage])
+
+  useEffect(() => {
+    if (modalIndex !== null) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [modalIndex])
+
+  if (!pages.length) {
+    return (
+      <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 className="text-xl font-semibold text-stone-900 mb-4">Menu</h2>
+        <p className="text-sm text-stone-500 italic">Menu not available</p>
+      </section>
+    )
+  }
 
   return (
-    <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
-      <h2 className="text-lg font-semibold text-stone-900">Menu</h2>
-      <p className="mt-1 text-sm text-stone-600">Browse courses by category—typical of dining apps.</p>
+    <>
+      <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 className="text-xl font-semibold text-stone-900 mb-6">Menu</h2>
 
-      <div className="mt-6 -mx-1 flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
-        {menuCategories.map((cat) => (
-          <button
-            key={cat.category}
-            type="button"
-            onClick={() => setActive(cat.category)}
-            className={[
-              'shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition',
-              active === cat.category
-                ? 'border-teal-700 bg-teal-700 text-white shadow-sm'
-                : 'border-stone-200 bg-white text-stone-700 hover:border-teal-300 hover:bg-teal-50',
-            ].join(' ')}
-          >
-            {cat.category}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-6 max-h-[min(520px,55vh)] overflow-y-auto pr-1">
-        <div className="grid gap-4 sm:grid-cols-2">
-          {current.items.map((item) => (
-            <article
-              key={item.name}
-              className="flex gap-4 rounded-xl border border-stone-100 bg-stone-50/50 p-4 transition hover:border-stone-200 hover:bg-white"
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {pages.map((page, idx) => (
+            <div
+              key={idx}
+              className="group cursor-pointer"
+              onClick={() => openModal(idx)}
             >
-              {item.image ? (
+              <div className="overflow-hidden rounded-xl border border-stone-200 shadow-sm transition-all group-hover:-translate-y-1 group-hover:shadow-md group-hover:border-teal-300">
                 <img
-                  src={item.image}
-                  alt=""
-                  className="h-24 w-24 shrink-0 rounded-lg object-cover sm:h-28 sm:w-28"
+                  src={page.src}
+                  alt={page.label}
+                  className="aspect-[3/4] w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
-              ) : (
-                <div
-                  className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg bg-stone-200/60 text-xs text-stone-500 sm:h-28 sm:w-28"
-                  aria-hidden
-                >
-                  No photo
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-semibold text-stone-900">{item.name}</h3>
-                  <span
-                    className={[
-                      'rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide',
-                      item.diet === 'veg'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-rose-100 text-rose-800',
-                    ].join(' ')}
-                    title={item.diet === 'veg' ? 'Vegetarian' : 'Non-vegetarian'}
-                  >
-                    {item.diet === 'veg' ? 'Veg' : 'Non-veg'}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm leading-relaxed text-stone-600">{item.description}</p>
-                <p className="mt-2 text-sm font-semibold text-teal-800">{item.price}</p>
               </div>
-            </article>
+              <p className="mt-2 text-center text-sm font-medium text-stone-700">{page.label}</p>
+            </div>
           ))}
         </div>
-      </div>
-    </section>
+      </section>
+
+      {modalIndex !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/95 p-4 backdrop-blur-sm" onClick={closeModal}>
+          {/* Close button */}
+          <button
+            type="button"
+            className="absolute right-4 top-4 z-10 rounded-full bg-stone-800/50 p-2 text-stone-200 transition hover:bg-stone-700 hover:text-white sm:right-8 sm:top-8"
+            onClick={(e) => { e.stopPropagation(); closeModal(); }}
+            title="Close"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+
+          {/* Page indicator */}
+          <div className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-full bg-stone-800/70 px-4 py-1.5 text-xs font-medium text-stone-200 backdrop-blur sm:bottom-10">
+            {pages[modalIndex].label} — {modalIndex + 1} / {pages.length}
+          </div>
+
+          {/* Previous */}
+          <button
+            type="button"
+            className="absolute left-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-stone-800/80 text-white shadow-lg backdrop-blur transition hover:bg-stone-700 hover:scale-105 sm:left-12"
+            onClick={prevImage}
+            title="Previous"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+
+          {/* Image */}
+          <div className="relative mx-auto flex h-full max-h-[90vh] w-full max-w-4xl items-center justify-center p-2 sm:p-8" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={pages[modalIndex].src}
+              alt={pages[modalIndex].label}
+              className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+            />
+          </div>
+
+          {/* Next */}
+          <button
+            type="button"
+            className="absolute right-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-stone-800/80 text-white shadow-lg backdrop-blur transition hover:bg-stone-700 hover:scale-105 sm:right-12"
+            onClick={nextImage}
+            title="Next"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+      )}
+    </>
   )
 }

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import data from '../data/restaurants.json'
-import { getRestaurantExtras } from '../lib/get-restaurant-extras.js'
 import { isEndAfterStart } from '../lib/time-range.js'
 import { useBooking } from '../hooks/use-booking.js'
 import { useVenueStore } from '../hooks/use-venue-store.js'
@@ -26,10 +25,6 @@ export function RestaurantDetailPage() {
     [restaurantId],
   )
 
-  const extras = useMemo(
-    () => (restaurant ? getRestaurantExtras(restaurant.id) : { menuCategories: [] }),
-    [restaurant],
-  )
 
   const [date, setDate] = useState(defaultDate)
   const [guests, setGuests] = useState(2)
@@ -116,7 +111,7 @@ export function RestaurantDetailPage() {
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         <div className="grid gap-10 lg:grid-cols-[1fr_min(400px)] lg:gap-12 xl:grid-cols-[1fr_min(420px)]">
           <div className="space-y-10">
-            <MenuSection menuCategories={extras.menuCategories} />
+            <MenuSection restaurantId={restaurant.id} />
 
             <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
               <h2 className="text-lg font-semibold text-stone-900">About</h2>

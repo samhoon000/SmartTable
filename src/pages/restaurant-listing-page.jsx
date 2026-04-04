@@ -1,22 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import data from '../data/restaurants.json'
-import { SearchBar } from '../components/search-bar.jsx'
 import { RestaurantGridCard } from '../components/restaurant-grid-card.jsx'
 
 const allCuisines = [...new Set(data.restaurants.flatMap((r) => r.cuisine.split(',').map((c) => c.trim())))].sort()
 
 export function RestaurantListingPage() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const areaFromUrl = searchParams.get('area') ?? ''
 
-  const [query, setQuery] = useState(areaFromUrl)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [locationFilter, setLocationFilter] = useState(areaFromUrl)
   const [selectedCuisines, setSelectedCuisines] = useState([])
   const [priceFilter, setPriceFilter] = useState('all')
   const [minRating, setMinRating] = useState('0')
 
   useEffect(() => {
-    setQuery(areaFromUrl)
+    setLocationFilter(areaFromUrl)
   }, [areaFromUrl])
 
   const toggleCuisine = (c) => {
@@ -25,12 +26,15 @@ export function RestaurantListingPage() {
 
   const filtered = useMemo(() => {
     const min = Number(minRating) || 0
+    const sq = searchQuery.trim().toLowerCase()
+    const loc = locationFilter.trim().toLowerCase()
     return data.restaurants.filter((r) => {
-      const matchesQuery =
-        !query.trim() ||
-        r.name.toLowerCase().includes(query.toLowerCase()) ||
-        r.cuisine.toLowerCase().includes(query.toLowerCase()) ||
-        r.location.toLowerCase().includes(query.toLowerCase())
+      const matchesSearch =
+        !sq ||
+        r.name.toLowerCase().includes(sq) ||
+        r.cuisine.toLowerCase().includes(sq)
+
+      const matchesLocation = !loc || r.location.toLowerCase().includes(loc)
 
       const matchesCuisine =
         selectedCuisines.length === 0 ||
@@ -43,33 +47,25 @@ export function RestaurantListingPage() {
 
       const matchesRating = r.rating >= min
 
-      return matchesQuery && matchesCuisine && matchesPrice && matchesRating
+      return matchesSearch && matchesLocation && matchesCuisine && matchesPrice && matchesRating
     })
-  }, [query, selectedCuisines, priceFilter, minRating])
-
-  const handleHeroSearch = ({ location }) => {
-    setQuery(location ?? '')
-  }
+  }, [searchQuery, locationFilter, selectedCuisines, priceFilter, minRating])
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-      <div className="max-w-5xl">
-        <SearchBar variant="inline" onSearch={handleHeroSearch} initialLocation={areaFromUrl} compact />
-      </div>
-
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">Restaurants</h1>
           <p className="mt-1 text-sm text-stone-600">
-            Filter by cuisine, price, and rating—then book a table in a few taps.
+            Filter by location, cuisine, price, and rating—then book a table in a few taps.
           </p>
         </div>
-        <p className="text-sm text-stone-500">
+        <p className="text-sm text-stone-500 sm:shrink-0">
           {filtered.length} {filtered.length === 1 ? 'place' : 'places'}
         </p>
       </div>
 
-      <div className="mt-8 flex flex-col gap-8 lg:flex-row lg:gap-10">
+      <div className="mt-8 flex flex-col gap-8 lg:mt-10 lg:flex-row lg:gap-10">
         <aside className="lg:w-64 lg:shrink-0">
           <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm lg:sticky lg:top-20">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">Filters</h2>
@@ -78,9 +74,23 @@ export function RestaurantListingPage() {
               <p className="text-sm font-medium text-stone-900">Search</p>
               <input
                 type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Name, cuisine, area"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Name, cuisine"
+                className="mt-2 w-full rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none ring-teal-600/0 focus:border-teal-500 focus:ring-2 focus:ring-teal-600/20"
+              />
+            </div>
+
+            <div className="mt-5">
+              <label className="text-sm font-medium text-stone-900" htmlFor="filter-location">
+                Location
+              </label>
+              <input
+                id="filter-location"
+                type="text"
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+                placeholder="Enter location"
                 className="mt-2 w-full rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none ring-teal-600/0 focus:border-teal-500 focus:ring-2 focus:ring-teal-600/20"
               />
             </div>
@@ -149,7 +159,9 @@ export function RestaurantListingPage() {
                 setSelectedCuisines([])
                 setPriceFilter('all')
                 setMinRating('0')
-                setQuery('')
+                setSearchQuery('')
+                setLocationFilter('')
+                navigate('/restaurants', { replace: true })
               }}
               className="mt-6 w-full rounded-xl border border-stone-200 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
             >
