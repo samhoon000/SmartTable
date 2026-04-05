@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useEffect } from 'react'
 import { getRestaurantExtras } from '../lib/get-restaurant-extras.js'
 import { reservationOverlaps } from '../lib/time-range.js'
 import { VenueContext } from './venue-context.js'
@@ -35,6 +35,7 @@ export function VenueStoreProvider({ children }) {
       manualReserved: saved?.manualReserved ?? {},
       removedTableIds: saved?.removedTableIds ?? {},
       extraTables: saved?.extraTables ?? {},
+      renamedTables: saved?.renamedTables ?? {},
     }
   })
 
@@ -46,14 +47,39 @@ export function VenueStoreProvider({ children }) {
     })
   }, [])
 
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+          const saved = JSON.parse(e.newValue)
+          setSnapshot({
+            reservations: saved?.reservations ?? [],
+            manualReserved: saved?.manualReserved ?? {},
+            removedTableIds: saved?.removedTableIds ?? {},
+            extraTables: saved?.extraTables ?? {},
+            renamedTables: saved?.renamedTables ?? {},
+          })
+        } catch {
+          // ignore
+        }
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
+
   const getTables = useCallback(
     (restaurantId) => {
       const { tables: defaults } = getRestaurantExtras(restaurantId)
       const removed = new Set(snapshot.removedTableIds[restaurantId] ?? [])
       const extras = snapshot.extraTables[restaurantId] ?? []
-      return [...defaults.filter((t) => !removed.has(t.id)), ...extras]
+      const renames = snapshot.renamedTables?.[restaurantId] ?? {}
+      return [...defaults.filter((t) => !removed.has(t.id)), ...extras].map(t => ({
+        ...t,
+        displayName: renames[t.id] ?? t.id
+      }))
     },
-    [snapshot.extraTables, snapshot.removedTableIds],
+    [snapshot.extraTables, snapshot.removedTableIds, snapshot.renamedTables],
   )
 
   const isManualReserved = useCallback(
@@ -145,7 +171,17 @@ export function VenueStoreProvider({ children }) {
   )
 
   const setManualTableReserved = useCallback(
-    (restaurantId, tableId, reserved) => {
+    async (restaurantId, tableId, reserved) => {
+      try {
+        await fetch("http://localhost:5000/api/table-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ restaurantId, tableId, isManualReserved: reserved })
+        });
+      } catch (err) {
+        console.error("Failed to set manual check:", err);
+      }
+
       const key = manualKey(restaurantId, tableId)
       setAndPersist((prev) => {
         const next = { ...prev.manualReserved }
@@ -204,10 +240,85 @@ export function VenueStoreProvider({ children }) {
     [setAndPersist],
   )
 
+  const renameTable = useCallback(
+    async (restaurantId, tableId, newName) => {
+      try {
+        await fetch("http://localhost:5000/api/table-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ restaurantId, tableId, displayName: newName })
+        });
+      } catch (err) {
+        console.error("Failed to rename:", err);
+      }
+
+      setAndPersist((prev) => ({
+        ...prev,
+        renamedTables: {
+          ...prev.renamedTables,
+          [restaurantId]: {
+            ...(prev.renamedTables?.[restaurantId] ?? {}),
+            [tableId]: newName || tableId
+          }
+        }
+      }))
+    },
+    [setAndPersist]
+  )
+
   const reservationsForRestaurant = useCallback(
     (restaurantId) => snapshot.reservations.filter((r) => r.restaurantId === restaurantId),
     [snapshot.reservations],
   )
+
+  const syncRestaurant = useCallback(async (restaurantId) => {
+    if (!restaurantId) return;
+    try {
+      const [resBookings, resStatus] = await Promise.all([
+        fetch(`http://localhost:5000/api/reservations/${restaurantId}`).then(r => r.json()),
+        fetch(`http://localhost:5000/api/table-status/${restaurantId}`).then(r => r.json())
+      ]);
+
+      setAndPersist((prev) => {
+        const otherRes = prev.reservations.filter(r => r.restaurantId !== restaurantId);
+        const mappedBookings = Array.isArray(resBookings) ? resBookings.map(r => ({
+          id: r._id,
+          restaurantId: r.restaurantId,
+          tableId: r.tableId,
+          date: r.date,
+          entryTime: r.startTime,
+          exitTime: r.endTime,
+          guestName: r.userName,
+          guests: r.guests || 2,
+          totalPrice: r.totalPrice,
+          createdAt: r.createdAt
+        })) : [];
+
+        const nextManualReserved = { ...prev.manualReserved };
+        Object.keys(nextManualReserved).forEach(k => {
+          if (k.startsWith(`${restaurantId}::`)) delete nextManualReserved[k];
+        });
+
+        const nextRenamed = { ...prev.renamedTables };
+        nextRenamed[restaurantId] = { ...(nextRenamed[restaurantId] || {}) };
+
+        if (Array.isArray(resStatus)) {
+          resStatus.forEach(s => {
+            if (s.isManualReserved) {
+              nextManualReserved[manualKey(restaurantId, s.tableId)] = true;
+            }
+            if (s.displayName) {
+              nextRenamed[restaurantId][s.tableId] = s.displayName;
+            }
+          });
+        }
+
+        return { ...prev, reservations: [...otherRes, ...mappedBookings], manualReserved: nextManualReserved, renamedTables: nextRenamed };
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }, [setAndPersist]);
 
   const value = useMemo(
     () => ({
@@ -219,7 +330,9 @@ export function VenueStoreProvider({ children }) {
       setManualTableReserved,
       addTable,
       removeTable,
+      renameTable,
       reservationsForRestaurant,
+      syncRestaurant,
       allReservations: snapshot.reservations,
     }),
     [
@@ -231,7 +344,9 @@ export function VenueStoreProvider({ children }) {
       setManualTableReserved,
       addTable,
       removeTable,
+      renameTable,
       reservationsForRestaurant,
+      syncRestaurant,
       snapshot.reservations,
     ],
   )

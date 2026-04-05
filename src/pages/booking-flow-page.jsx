@@ -23,7 +23,7 @@ const STEP_META = [
 export function BookingFlowPage() {
   const { restaurantId } = useParams()
   const navigate = useNavigate()
-  const { hasBookingConflict } = useVenueStore()
+  const { hasBookingConflict, syncRestaurant, getTables } = useVenueStore()
   const {
     restaurant,
     date,
@@ -74,6 +74,10 @@ export function BookingFlowPage() {
     if (!fromJson) navigate('/restaurants', { replace: true })
   }, [fromJson, navigate])
 
+  useEffect(() => {
+    if (restaurantId) syncRestaurant(restaurantId)
+  }, [restaurantId, syncRestaurant])
+
   if (!fromJson) {
     return null
   }
@@ -118,6 +122,9 @@ export function BookingFlowPage() {
     if (!openPaymentCheckout()) return
     navigate('/payment')
   }
+
+  const selectedTableObj = tableId ? getTables(restaurantId).find(t => t.id === tableId) : null
+  const displayTableName = selectedTableObj ? (selectedTableObj.displayName || selectedTableObj.id) : tableId
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
@@ -256,7 +263,7 @@ export function BookingFlowPage() {
             <div className="mt-6 rounded-xl border border-stone-100 bg-stone-50/80 p-4 text-sm">
               <p className="font-semibold text-stone-900">{restaurant.name}</p>
               <p className="mt-2 text-stone-600">
-                Table {tableId} · {tableSeats} seats
+                Table {displayTableName} · {tableSeats} seats
               </p>
               <p className="mt-1 text-stone-600">
                 {formatDisplayDate(date)} · {entryTime} – {exitTime}

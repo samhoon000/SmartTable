@@ -33,7 +33,7 @@ export function TableFloorPlan({
   adminSelectedId,
   onAdminSelect,
 }) {
-  const { getTables, getTableUiStatus, isManualReserved } = useVenueStore()
+  const { getTables, getTableUiStatus, isManualReserved, reservationsForRestaurant } = useVenueStore()
   const tables = getTables(restaurantId)
 
   return (
@@ -91,15 +91,17 @@ export function TableFloorPlan({
               onClick={handleClick}
               className={`${base} ${stateClass}`}
             >
-              <span className="font-bold text-stone-900">{table.id}</span>
-              <span className="text-xs text-stone-600">{table.seats} seats</span>
+              <div className="flex w-full items-start justify-between">
+                <span className="font-bold text-stone-900">{table.displayName || table.id}</span>
+                <span className="text-xs font-medium text-stone-600">{table.seats} seats</span>
+              </div>
               <span
                 className={[
-                  'mt-2 inline-flex w-fit rounded-md px-2 py-0.5 text-[10px] font-bold uppercase',
+                  'mt-1 inline-flex w-fit rounded-md px-2 py-0.5 text-[10px] font-bold uppercase',
                   isReserved ? 'bg-red-600 text-white' : isSelected ? 'bg-teal-700 text-white' : 'bg-emerald-600 text-white',
                 ].join(' ')}
               >
-                {isReserved ? 'Reserved' : isSelected ? 'Selected' : 'Available'}
+                {isReserved && mode === 'admin' && isManualReserved(restaurantId, table.id) ? 'Manual' : isReserved ? 'Reserved' : isSelected ? 'Selected' : 'Available'}
               </span>
             </button>
           )

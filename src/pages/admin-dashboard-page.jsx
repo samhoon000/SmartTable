@@ -8,7 +8,7 @@ import { TableFloorPlan } from '../components/table-floor-plan.jsx'
 
 export function AdminDashboardPage() {
   const { session, isAuthenticated, logout } = useAdminAuth()
-  const { setManualTableReserved, isManualReserved, addTable, removeTable, reservationsForRestaurant } =
+  const { setManualTableReserved, isManualReserved, addTable, removeTable, renameTable, reservationsForRestaurant, syncRestaurant, getTables } =
     useVenueStore()
 
   const restaurantId = session?.restaurantId ?? data.restaurants[0]?.id ?? ''
@@ -16,36 +16,40 @@ export function AdminDashboardPage() {
   const [newTableId, setNewTableId] = useState('')
   const [newSeats, setNewSeats] = useState(4)
   const [addMsg, setAddMsg] = useState('')
+  const [renameInput, setRenameInput] = useState('')
+  const [renameMsg, setRenameMsg] = useState('')
 
-  const [reservations, setReservations] = useState([])
-  const [loadingReservations, setLoadingReservations] = useState(false)
+  const reservations = useMemo(() => reservationsForRestaurant(restaurantId), [reservationsForRestaurant, restaurantId])
+
+  const reservationsGrouped = useMemo(() => {
+    const groups = {}
+    reservations.forEach((r) => {
+      if (!groups[r.tableId]) groups[r.tableId] = []
+      groups[r.tableId].push(r)
+    })
+    
+    Object.keys(groups).forEach((tId) => {
+      groups[tId].sort((a, b) => {
+        if (a.entryTime < b.entryTime) return -1
+        if (a.entryTime > b.entryTime) return 1
+        return 0
+      })
+    })
+
+    const sortedTableIds = Object.keys(groups).sort((a, b) => {
+      const aNum = parseInt(a.replace(/\D/g, '')) || 0
+      const bNum = parseInt(b.replace(/\D/g, '')) || 0
+      return aNum - bNum || a.localeCompare(b)
+    })
+
+    return { groups, sortedTableIds }
+  }, [reservations])
 
   useEffect(() => {
     if (restaurantId) {
-      setLoadingReservations(true)
-      fetch(`http://localhost:5000/api/reservations/${restaurantId}`)
-        .then(res => res.json())
-        .then(data => {
-            if (Array.isArray(data)) {
-              setReservations(data.map(r => ({
-                id: r._id,
-                tableId: r.tableId,
-                guestName: r.userName,
-                guests: r.guests || 2,
-                date: r.date,
-                entryTime: r.startTime,
-                exitTime: r.endTime,
-                totalPrice: r.totalPrice,
-              })))
-            }
-            setLoadingReservations(false)
-        })
-        .catch(err => {
-            console.error(err)
-            setLoadingReservations(false)
-        })
+      syncRestaurant(restaurantId)
     }
-  }, [restaurantId])
+  }, [restaurantId, syncRestaurant])
 
   if (!isAuthenticated) {
     return <Navigate to="/admin/login" replace />
@@ -68,6 +72,34 @@ export function AdminDashboardPage() {
     if (!adminPick?.id) return
     removeTable(restaurantId, adminPick.id)
     setAdminPick(null)
+  }
+
+  const handleAdminSelect = (t) => {
+    setAdminPick(t)
+    setRenameInput(t.displayName || t.id)
+    setRenameMsg('')
+  }
+
+  const handleRename = (e) => {
+    e.preventDefault()
+    if (!adminPick) return
+    const newName = renameInput.trim()
+    renameTable(restaurantId, adminPick.id, newName)
+    setAdminPick({ ...adminPick, displayName: newName || adminPick.id })
+    setRenameMsg('Name saved.')
+    setTimeout(() => setRenameMsg(''), 2000)
+  }
+
+  const handleRemoveReservation = async (reservationId) => {
+    if (!confirm('Are you sure you want to remove this customer checkout?')) return
+    try {
+      await fetch(`http://localhost:5000/api/reservations/${reservationId}`, {
+        method: 'DELETE',
+      })
+      syncRestaurant(restaurantId)
+    } catch (err) {
+      console.error('Failed to remove reservation:', err)
+    }
   }
 
   return (
@@ -107,13 +139,13 @@ export function AdminDashboardPage() {
               mode="admin"
               restaurantId={restaurantId}
               adminSelectedId={adminPick?.id}
-              onAdminSelect={(t) => setAdminPick(t)}
+              onAdminSelect={handleAdminSelect}
             />
           </div>
           {adminPick ? (
             <div className="mt-6 flex flex-wrap gap-2 rounded-xl border border-stone-100 bg-stone-50 p-4">
               <p className="w-full text-sm text-stone-600">
-                Selected <span className="font-semibold text-stone-900">{adminPick.id}</span> · {adminPick.seats} seats ·
+                Selected <span className="font-semibold text-stone-900">{adminPick.displayName || adminPick.id}</span> · {adminPick.seats} seats ·
                 currently{' '}
                 {isManualReserved(restaurantId, adminPick.id) ? (
                   <span className="font-medium text-red-700">reserved (manual)</span>
@@ -173,6 +205,28 @@ export function AdminDashboardPage() {
           </section>
 
           <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-stone-900">Rename table</h2>
+            <p className="mt-1 text-xs text-stone-500">Select a table to give it a custom name (e.g. Window Seat 1).</p>
+            <form onSubmit={handleRename} className="mt-4 space-y-3">
+              <input
+                value={renameInput}
+                onChange={(e) => setRenameInput(e.target.value)}
+                disabled={!adminPick}
+                placeholder="Select a table first"
+                className="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-teal-500 disabled:bg-stone-50 disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={!adminPick}
+                className="w-full rounded-xl bg-teal-700 py-2.5 text-sm font-semibold text-white hover:bg-teal-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Rename table
+              </button>
+              {renameMsg ? <p className="text-xs text-teal-700">{renameMsg}</p> : null}
+            </form>
+          </section>
+
+          <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-stone-900">Remove table</h2>
             <p className="mt-1 text-xs text-stone-500">Select a table on the floor, then remove it from the layout.</p>
             <button
@@ -189,32 +243,69 @@ export function AdminDashboardPage() {
 
       <section className="mt-10 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold text-stone-900">Reservation overview</h2>
-        <p className="mt-1 text-sm text-stone-600">Guest bookings fetched from the database.</p>
-        {loadingReservations ? (
-          <p className="mt-6 text-sm text-stone-500">Loading reservations...</p>
-        ) : reservations.length === 0 ? (
+        <p className="mt-1 text-sm text-stone-600">Guest bookings grouped by table and sorted by time.</p>
+        {reservations.length === 0 ? (
           <p className="mt-6 text-sm text-stone-500">No reservations yet for this restaurant.</p>
         ) : (
-          <ul className="mt-6 divide-y divide-stone-100">
-            {reservations.map((r) => (
-              <li key={r.id} className="flex flex-col gap-1 py-4 first:pt-0 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-medium text-stone-900">{r.guestName}</p>
-                  <p className="text-sm text-stone-600">
-                    Table {r.tableId} · {r.guests} {r.guests === 1 ? 'guest' : 'guests'}
-                  </p>
+          <div className="mt-8 flex flex-col gap-8">
+            {reservationsGrouped.sortedTableIds.map((tableId) => {
+              const tableObj = getTables(restaurantId).find(t => t.id === tableId)
+              const dName = tableObj ? (tableObj.displayName || tableId) : tableId
+
+              return (
+              <div key={tableId} className="overflow-hidden rounded-xl border border-stone-200 shadow-sm">
+                <div className="border-b border-stone-200 bg-stone-50 px-4 py-3">
+                  <h3 className="font-semibold text-stone-800">Table {dName}</h3>
                 </div>
-                <div className="text-right text-sm text-stone-600">
-                  <div>
-                    {r.date} · {r.entryTime} – {r.exitTime}
-                  </div>
-                  {r.totalPrice != null ? (
-                    <div className="mt-1 font-semibold text-teal-800">{formatRupees(r.totalPrice)}</div>
-                  ) : null}
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap text-left text-sm text-stone-600">
+                    <thead className="border-b border-stone-100 bg-white text-xs uppercase tracking-wider text-stone-500">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">S.No</th>
+                        <th className="px-4 py-3 font-medium">Guest Details</th>
+                        <th className="px-4 py-3 font-medium">Date & Time</th>
+                        <th className="px-4 py-3 font-medium text-right">Status / Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100 bg-white">
+                      {reservationsGrouped.groups[tableId].map((r, index) => (
+                        <tr key={r.id} className="transition-colors hover:bg-stone-50">
+                          <td className="px-4 py-4 align-top font-medium text-stone-900">
+                            {index + 1}
+                          </td>
+                          <td className="px-4 py-4 align-top">
+                            <p className="font-medium text-stone-900">{r.guestName}</p>
+                            <p className="text-xs text-stone-500">{r.guests} {r.guests === 1 ? 'guest' : 'guests'}</p>
+                          </td>
+                          <td className="px-4 py-4 align-top">
+                            <p className="font-medium text-stone-700">{r.date}</p>
+                            <p className="text-xs text-stone-500">{r.entryTime} – {r.exitTime}</p>
+                            {r.totalPrice != null && (
+                              <p className="mt-1 text-xs font-semibold text-teal-700">{formatRupees(r.totalPrice)}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-4 align-top text-right">
+                            {restaurantId === 'saffron-room' ? (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveReservation(r.id)}
+                                className="inline-flex items-center rounded-md bg-stone-100 px-3 py-1.5 text-xs font-semibold text-stone-700 transition-colors hover:bg-red-50 hover:text-red-700"
+                              >
+                                Check-out
+                              </button>
+                            ) : (
+                              <span className="text-xs font-medium text-stone-400">N/A</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </li>
-            ))}
-          </ul>
+              </div>
+              )
+            })}
+          </div>
         )}
       </section>
     </div>

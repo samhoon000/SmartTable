@@ -5,6 +5,7 @@ const mongoose = require("mongoose")
 require("dotenv").config()
 
 const Reservation = require("./models/Reservation")
+const TableStatus = require("./models/TableStatus")
 
 const app = express()
 app.use(cors())
@@ -102,9 +103,49 @@ app.get("/api/reservations/:restaurantId", async (req, res) => {
     const reservations = await Reservation.find({
       restaurantId: req.params.restaurantId,
     })
-
     res.json(reservations)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
 
+// 🗑️ DELETE BOOKING
+app.delete("/api/reservations/:id", async (req, res) => {
+  try {
+    await Reservation.findByIdAndDelete(req.params.id)
+    res.json({ success: true })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// 🔧 GET TABLE STATUS
+app.get("/api/table-status/:restaurantId", async (req, res) => {
+  try {
+    const statuses = await TableStatus.find({
+      restaurantId: req.params.restaurantId,
+    })
+    res.json(statuses)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// 🔧 SET TABLE STATUS
+app.post("/api/table-status", async (req, res) => {
+  try {
+    const { restaurantId, tableId, isManualReserved, displayName } = req.body
+    
+    const updatePayload = {}
+    if (isManualReserved !== undefined) updatePayload.isManualReserved = isManualReserved
+    if (displayName !== undefined) updatePayload.displayName = displayName
+
+    await TableStatus.findOneAndUpdate(
+      { restaurantId, tableId },
+      { $set: updatePayload },
+      { upsert: true, new: true }
+    )
+    res.json({ success: true })
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
