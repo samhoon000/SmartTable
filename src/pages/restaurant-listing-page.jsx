@@ -15,10 +15,24 @@ export function RestaurantListingPage() {
   const [selectedCuisines, setSelectedCuisines] = useState([])
   const [priceFilter, setPriceFilter] = useState('all')
   const [minRating, setMinRating] = useState('0')
+  const [bookingsToday, setBookingsToday] = useState({})
 
   useEffect(() => {
     setLocationFilter(areaFromUrl)
   }, [areaFromUrl])
+
+  useEffect(() => {
+    fetch('/api/reservations/today')
+      .then((res) => (res.ok ? res.json() : {}))
+      .then((data) => {
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+          setBookingsToday(data)
+        }
+      })
+      .catch(() => {
+        setBookingsToday({})
+      })
+  }, [])
 
   const toggleCuisine = (c) => {
     setSelectedCuisines((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]))
@@ -178,7 +192,11 @@ export function RestaurantListingPage() {
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {filtered.map((r) => (
-                <RestaurantGridCard key={r.id} restaurant={r} />
+                <RestaurantGridCard
+                  key={r.id}
+                  restaurant={r}
+                  guestsToday={bookingsToday[r.id] ?? 0}
+                />
               ))}
             </div>
           )}

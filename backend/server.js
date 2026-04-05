@@ -97,6 +97,37 @@ app.post("/api/reservations/book-table", async (req, res) => {
   }
 })
 
+// 📊 Guests booked today per restaurant (aggregate)
+app.get("/api/reservations/today", async (req, res) => {
+  try {
+    const today = new Date().toISOString().split("T")[0]
+
+    const data = await Reservation.aggregate([
+      {
+        $match: {
+          date: today,
+          status: "booked",
+        },
+      },
+      {
+        $group: {
+          _id: "$restaurantId",
+          totalGuests: { $sum: "$guests" },
+        },
+      },
+    ])
+
+    const result = {}
+    data.forEach((item) => {
+      result[item._id] = item.totalGuests
+    })
+
+    res.json(result)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // 🧑‍💼 GET BOOKINGS
 app.get("/api/reservations/:restaurantId", async (req, res) => {
   try {

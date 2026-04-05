@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { StarRating } from './star-rating.jsx'
 
-export function RestaurantGridCard({ restaurant }) {
+export function RestaurantGridCard({ restaurant, guestsToday = 0 }) {
   const { id, name, cuisine, rating, reviewCount, priceRange, location, image } = restaurant
 
   return (
@@ -29,6 +29,7 @@ export function RestaurantGridCard({ restaurant }) {
           <span>{reviewCount} reviews</span>
         </div>
         <p className="mt-2 text-sm text-stone-500">{location}</p>
+        <p className="mt-1 text-sm text-stone-600">{guestsToday} guests today</p>
         <div className="mt-auto pt-4">
           <Link
             to={`/restaurants/${id}`}
